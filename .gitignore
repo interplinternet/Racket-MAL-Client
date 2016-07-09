@@ -1,0 +1,15 @@
+# ignore's DrRacket's back-up files.
+# Even though I primarily use emacs, it's a good idea just in case.
+/mrred*.rkt
+
+# org files to be exported to another format
+<<<<<<< HEAD
+/*.org
+=======
+/*-export.org
+*.org
+>>>>>>> master
+
+# emacs autosave files
+.\#*\#?
+.\#*

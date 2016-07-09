@@ -9,8 +9,8 @@
 (define SEARCH "search.xml?q=")
 (define API (combine-url/relative HOST "api/"))
 
-; "racket mal.rkt yourusername yourpass -i"
-(define arguments (current-command-line-arguments))
+; "racket -it mal.rkt yourusername yourpass -i"
+;(define arguments (current-command-line-arguments))
 
 (define user (make-parameter (vector-ref arguments 0)))
 (define pass (make-parameter (vector-ref arguments 1)))
@@ -52,8 +52,6 @@
 
 ; MAL-Xexpr -> Xexpr
 ; Prettifies MAL XML by appending strings together and removing html tags.
-;I considered using a foldr expression, but having to distinguish between
-;regular single strings and a list of strings makes it a bit troublesome.
 (define (normalize-mal xexpr)
   ; Xexpr -> Xexpr
   (define (normalize-one xpr)
