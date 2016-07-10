@@ -1,19 +1,66 @@
 #lang racket
 (require xml xml/path net/url net/uri-codec net/http-client net/base64)
 (provide (all-defined-out))
+
+;-----------------------------------------------------------------------------------------
+#| URLS |#
+;-----------------------------------------------------------------------------------------
 (define MAL "http://myanimelist.net/")
 (define HOST (string->url MAL))
 (define AUTH-STRING "account/verify_credentials.xml")
 (define ANIME "anime/")
 (define MANGA "manga/")
 (define SEARCH "search.xml?q=")
+(define ADD "add/")
+(define UPDATE "update/")
+(define DELETE "delete/")
 (define API (combine-url/relative HOST "api/"))
 
-; "racket -it mal.rkt yourusername yourpass -i"
-;(define arguments (current-command-line-arguments))
+;-----------------------------------------------------------------------------------------
+#| XML |#
+;-----------------------------------------------------------------------------------------
+; XML -> Xexpr
+(define xml-values
+  (compose1 xml->xexpr (eliminate-whitespace '(entry)) document-element
+            read-xml/document))
 
-(define user (make-parameter (vector-ref arguments 0)))
-(define pass (make-parameter (vector-ref arguments 1)))
+; These contain the default values from MAL's API guide.
+(define anime-values (xml-values (open-input-file "animevalues.xml")))
+(define manga-values (xml-values (open-input-file "mangavalues.xml")))
+
+; Xexpr-Element := [List Symbol [Or Empty [Listof Symbol]] Content]
+; Content := String | [Listof Xexpr-Element] | '()
+; Xexpr Symbol String -> Xexpr
+; Update the content of an xexpr element with the new content given.
+; Look into doing this with pattern matching.
+(define (set-xexpr-content xexpr name content)
+  (define content-list (rest (rest xexpr)))
+  (define (set-content a-list)
+    (cond
+      [(empty? a-list) '()]
+      [else
+       (define elem (first a-list))
+       (cond
+         [(symbol=? (first elem) name)
+          (define new-elem (cons name (cons (second elem) (cons content '()))))
+          (cons new-elem (rest a-list))]
+         [else (cons (first a-list) (set-content (rest a-list)))])]))
+  (cons (first xexpr) (cons (second xexpr) (set-content content-list))))
+;-----------------------------------------------------------------------------------------
+#| BOILERPLATE |#
+;-----------------------------------------------------------------------------------------
+; "racket -it mal.rkt yourusername
+
+; If launched from the command-line with the appropriate arguments for a username and
+; password, parameterize user and pass with those arguments. Otherwise, parameterize both
+; to "default".
+(define-values (user pass)
+  (let ([arguments (current-command-line-arguments)])
+    (if (= (vector-length arguments) 2)
+        (values (make-parameter (vector-ref arguments 0))
+                (make-parameter (vector-ref arguments 1)))
+        (values (make-parameter "default")
+                (make-parameter "default")))))
 
 ; URL [Listof String] -> URL
 ; combines a series of strings into one URL path.
@@ -37,8 +84,8 @@
 ; trims whitespace at the end. Necessary for authorization, MAL excepts your information
 ; in base64.
 (define (string->encoded str)
-  [(compose string-trim bytes->string/utf-8
-            base64-encode string->bytes/utf-8)
+  [(compose1 string-trim bytes->string/utf-8
+             base64-encode string->bytes/utf-8)
    str])
 
 (define current-auth (make-parameter (auth-header)))
@@ -81,7 +128,7 @@
 ; which chains them together such that the output to each is the input to the
 ; next. Finally, we apply that final function to the input string.
 (define (remove-html input-str)
-  [(apply compose
+  [(apply compose1
           (map
            (curryr string-replace)
            '("&#039;" "<br />") '("'" "")))
@@ -94,8 +141,8 @@
 ; formatting placeholders. Then it converts the xml expression into a normal
 ; racket Xexpr for manipulation.
 (define mal->xexpr
-  (compose normalize-mal xml->xexpr (eliminate-whitespace '(anime entry))
-           document-element read-xml/document))
+  (compose1 normalize-mal xml->xexpr (eliminate-whitespace '(anime manga entry))
+            document-element read-xml/document))
 ;-----------------------------------------------------------------------------------------
 #| ACTIONS |#
 ;-----------------------------------------------------------------------------------------
@@ -107,41 +154,41 @@
 ; -> XML
 ; Calls the current parameter for the users authorization info and sends it to MAL,
 ; returning a xexpr containing the users authorization info.
-(define (authorize) 
-  (call/input-url (combine-url/relative API AUTH-STRING)
-                  get-pure-port
-                  mal->xexpr
-                  (list (current-auth))))
+(define (authorize)
+  (mal-action get-pure-port
+              API AUTH-STRING))
 
 ; String String -> Xexpr
 ; Returns an Xexpr detailing the search results. Category is a string: either
 ; ANIME or MANGA.
 (define (search category query)
-  ; uses parameters
   (mal-action get-pure-port
               API category
-              (string-append SEARCH (form-urlencoded-encode query)))
-  #| (call/input-url
-  (combine-url*/relative API category
-  (string-append SEARCH (form-urlencoded-encode query)))
-  get-pure-port
-  mal->xexpr
-  (list (current-auth)))|#)
+              (string-append SEARCH (form-urlencoded-encode query))))
 
-; String Number -> Xexpr
-; this is broken. How am I supposed to grab the appropriate XML values for an anime if I
-; only have the ID? There's no defined way to just view the "Anime Values" of a series
-; with only its ID. Searching is done by name, not by ID. MAL API sucks. Check
-; MALappinfo.php for more information on the old API.
-#| ; category must be (anime|manga)list
-(define (add category id)
-  (call/input-url
-   (combine-url*/relative API category "add/"
-                          (string-append (number->string id) ".xml"))
-   (λ (url headr) (post-pure-port url #"appropriate bytestring" headr))
-   mal->xexpr
-   (list (current-auth))))
+; String String -> String
+; Drops the last character of the first string, appends the suffix string, then reattaches
+; the last character. Here, the last character is "/".
+(define (category+suffix str sfx)
+  (define last-char (string-length str))
+  (string-append (substring str 0 (sub1 last-char))
+                 sfx
+                 (substring str (sub1 last-char) last-char)))
 
+; Xexpr -> Bytes/UTF-8
+(define xexpr->bytes/utf-8
+  (compose1 string->bytes/utf-8 xexpr->string))
+
+; String Xexpr Number -> String?
+; Requires a category (either ANIME or MANGA) and XML-Values representation of
+; an anime or manga to add, and said anime/manga's ID number.
+; Returns a String that mal-action is an inconvenient about parsing. Needs testing.
+(define (add category xml-values id)
+  (mal-action (λ (url header)
+                (post-pure-port url (xexpr->bytes/utf-8 xml-values) header))
+              API (category+suffix category "list") ADD
+              (string-append (number->string id) ".xml")))
+#|
 (define (delete category id)
   ...)
 
