@@ -13,22 +13,26 @@
 </li>
 </ul>
 </li>
-<li><a href="#orgheadline6">3. Search</a></li>
-<li><a href="#orgheadline7">4. Add/Update/Delete</a></li>
-<li><a href="#orgheadline10">5. Boilerplate</a>
+<li><a href="#orgheadline8">3. Actions</a>
 <ul>
-<li><a href="#orgheadline8">5.1. combine-url*/relative</a></li>
-<li><a href="#orgheadline9">5.2. mal-action</a></li>
+<li><a href="#orgheadline6">3.1. Search</a></li>
+<li><a href="#orgheadline7">3.2. Add/Update/Delete</a></li>
 </ul>
 </li>
-<li><a href="#orgheadline14">6. Examples</a>
+<li><a href="#orgheadline11">4. Boilerplate</a>
 <ul>
-<li><a href="#orgheadline11">6.1. Searching for "Full Metal Alchemist"</a></li>
-<li><a href="#orgheadline12">6.2. Pulling the synopsis of Full Metal Alchemist from that search, using Simple X-expression Path Queries</a></li>
-<li><a href="#orgheadline13">6.3. Combining a number of strings with a base URL in one call to create a single new URL</a></li>
+<li><a href="#orgheadline9">4.1. combine-url*/relative</a></li>
+<li><a href="#orgheadline10">4.2. mal-action</a></li>
 </ul>
 </li>
-<li><a href="#orgheadline15">7. <span class="todo TODO">TODO</span> </a></li>
+<li><a href="#orgheadline15">5. Examples</a>
+<ul>
+<li><a href="#orgheadline12">5.1. Searching for "Full Metal Alchemist"</a></li>
+<li><a href="#orgheadline13">5.2. Pulling the synopsis of Full Metal Alchemist from that search, using Simple X-expression Path Queries</a></li>
+<li><a href="#orgheadline14">5.3. Combining a number of strings with a base URL in one call to create a single new URL</a></li>
+</ul>
+</li>
+<li><a href="#orgheadline16">6. <span class="todo TODO">TODO</span> </a></li>
 </ul>
 </div>
 </div>
@@ -56,29 +60,31 @@ Prettifies MAL-Xexprs. There are two special cases here: A regular list of eleme
 
 This one's a bit of a doozy. We want to take a string, `input-str`, and replace all elements in it which correspond to two particular HTML tags. We could just compose the functions manually, but that doesn't scale. Every time we come across a new HTML tag, we have to wrap the function wiht another `string-replace`! Instead, it would be better if we could pass the function two lists: one containing elements to be replaced, and one containing their replacements. Then we map `string-replace` to the lists and create new functions now only need to be applied to an input string. However, at this time we don't have the input string yet, which must be the first element `string-replace` takes as input. So we can't just curry string-replace with the target strings. Instead, we can use `curryr` which works "backwards" to a normal currying. So we map `(curryr string-replace)` to the two lists, then we apply `compose` to them so that the result of replacing all target elements in a string becomes the input for the next string-replacement. Finally, we apply the composed function to the input string.
 
-# Search<a id="orgheadline6"></a>
+# Actions<a id="orgheadline8"></a>
+
+## Search<a id="orgheadline6"></a>
 
 Searching works for anime and manga.
 `(search category query)` will return an XML document containing the results of your query, where `category` is either the constants ANIME or MANGA.
 
-# Add/Update/Delete<a id="orgheadline7"></a>
+## Add/Update/Delete<a id="orgheadline7"></a>
 
 Currently unsupported. MAL's API requires that too add, update, or delete an anime or manga you must pass its ID and data containing its XML information ("Anime/Manga Values"). However, given only an ID there is no way to determine the anime and retrieve its XML information from the API. You can scrape the website, but you need specific user permissions from the website for that to be allowed. There might be a way via the old malappinfo.php API, but that is currently completely undocumented has been "about to be removed" since 2011.
 
-# Boilerplate<a id="orgheadline10"></a>
+# Boilerplate<a id="orgheadline11"></a>
 
-## combine-url\*/relative<a id="orgheadline8"></a>
+## combine-url\*/relative<a id="orgheadline9"></a>
 
 This is like `combine-url/relative`, but can take multiple strings and create a single URL from them, whereas the original can only take one at a time and you have to manually wrap each call in another in order for it to be the base-url for another string.
 
-## mal-action<a id="orgheadline9"></a>
+## mal-action<a id="orgheadline10"></a>
 
 Since most actions on the MAL API are similarly structured, we can abstract over it with another function.
 First use `call/input-url` which will handle the opening and closing of ports automatically, then combine the strings given, ensuring the first string is the main URL as you would normally type it, use your port-handling function such as `get-pure-port` or `post-pure-port`, etc., and pass the function which will handle the output. Since the output is XML, we pass `mal->xexpr`. The last element is a list representing header data, which is only our authorization.
 
-# Examples<a id="orgheadline14"></a>
+# Examples<a id="orgheadline15"></a>
 
-## Searching for "Full Metal Alchemist"<a id="orgheadline11"></a>
+## Searching for "Full Metal Alchemist"<a id="orgheadline12"></a>
 
 `(search ANIME "Full Metal Alchemist")`
 => 
@@ -101,19 +107,20 @@ First use `call/input-url` which will handle the opening and closing of ports au
     "Edward Elric, a young, brilliant alchemist, has lost much in his twelve-year life: when he and his brother Alphonse try to resurrect their dead mother through the forbidden act of human transmutation, Edward loses his brother as well as two of his limbs. With his supreme alchemy skills, Edward binds Alphonse's soul to a large suit of armor.  A year later, Edward, now promoted to the fullmetal alchemist of the state, embarks on a journey with his younger brother to obtain the Philosopher's Stone. The fabled mythical object is rumored to be capable of amplifying an alchemist's abilities by leaps and bounds, thus allowing them to override the fundamental law of alchemy: to gain something, an alchemist must sacrifice something of equal value. Edward hopes to draw into the military's resources to find the fabled stone and restore his and Alphonse's bodies to normal. However, the Elric brothers soon discover that there is more to the legendary stone than meets the eye, as they are led to the epicenter of a far darker battle than they could have ever imagined.  [Written by MAL Rewrite]")
    (image () "![img](//cdn.myanimelist.net/images/anime/10/75815.jpg)")))
 
-## Pulling the synopsis of Full Metal Alchemist from that search, using Simple X-expression Path Queries<a id="orgheadline12"></a>
+## Pulling the synopsis of Full Metal Alchemist from that search, using Simple X-expression Path Queries<a id="orgheadline13"></a>
 
 `(se-path* '(synopsis) (search ANIME "Full Metal Alchemist"))`
 =>
 "Edward Elric, a young, brilliant alchemist, has lost much in his twelve-year life: when he and his brother Alphonse try to resurrect their dead mother through the forbidden act of human transmutation, Edward loses his brother as well as two of his limbs. With his supreme alchemy skills, Edward binds Alphonse's soul to a large suit of armor.  A year later, Edward, now promoted to the fullmetal alchemist of the state, embarks on a journey with his younger brother to obtain the Philosopher's Stone. The fabled mythical object is rumored to be capable of amplifying an alchemist's abilities by leaps and bounds, thus allowing them to override the fundamental law of alchemy: to gain something, an alchemist must sacrifice something of equal value. Edward hopes to draw into the military's resources to find the fabled stone and restore his and Alphonse's bodies to normal. However, the Elric brothers soon discover that there is more to the legendary stone than meets the eye, as they are led to the epicenter of a far darker battle than they could have ever imagined.  [Written by MAL Rewrite]"
 
-## Combining a number of strings with a base URL in one call to create a single new URL<a id="orgheadline13"></a>
+## Combining a number of strings with a base URL in one call to create a single new URL<a id="orgheadline14"></a>
 
 `(combine-url*/relative API ANIME (string-append SEARCH "full metal alchemist"))`
-`> "http://myanimelist.net/api/anime/search.xml?q=full+metal+alchemist"
-We have to append SEARCH and the query because "search.xml?q`" is not considered a URL element which can be combined with another.
+=> 
+"<http://myanimelist.net/api/anime/search.xml?q=full+metal+alchemist>"
+We have to append SEARCH and the query because "search.xml?q=" is not considered a URL element which can be combined with another.
 
-# TODO <a id="orgheadline15"></a>
+# TODO <a id="orgheadline16"></a>
 
 Allow conditional loading of command-line arguments. If you try to reload the module while already in Emacs, you receive an error and it doesn't load at all because there are no command line arguments. If there are no command line arguments, just parameterize the user and pass to "default" and "default" and let the user insert their own manually via (user "myusername") and (pass "mypassword").
 

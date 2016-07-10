@@ -97,7 +97,7 @@
   (compose normalize-mal xml->xexpr (eliminate-whitespace '(anime entry))
            document-element read-xml/document))
 ;-----------------------------------------------------------------------------------------
-#| METHODS |#
+#| ACTIONS |#
 ;-----------------------------------------------------------------------------------------
 (define (mal-action port-func . str)
   (call/input-url (apply combine-url*/relative str)
