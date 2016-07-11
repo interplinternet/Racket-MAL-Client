@@ -22,20 +22,22 @@
 <li><a href="#orgheadline10">4.2. Add/Update/Delete</a></li>
 </ul>
 </li>
-<li><a href="#orgheadline14">5. Boilerplate</a>
+<li><a href="#orgheadline16">5. Boilerplate</a>
 <ul>
 <li><a href="#orgheadline12">5.1. combine-url*/relative</a></li>
 <li><a href="#orgheadline13">5.2. mal-action</a></li>
+<li><a href="#orgheadline14">5.3. mal-list-action</a></li>
+<li><a href="#orgheadline15">5.4. category+suffix</a></li>
 </ul>
 </li>
-<li><a href="#orgheadline18">6. Examples</a>
+<li><a href="#orgheadline20">6. Examples</a>
 <ul>
-<li><a href="#orgheadline15">6.1. Searching for "Full Metal Alchemist"</a></li>
-<li><a href="#orgheadline16">6.2. Pulling the synopsis of Full Metal Alchemist from that search, using Simple X-expression Path Queries</a></li>
-<li><a href="#orgheadline17">6.3. Combining a number of strings with a base URL in one call to create a single new URL</a></li>
+<li><a href="#orgheadline17">6.1. Searching for "Full Metal Alchemist"</a></li>
+<li><a href="#orgheadline18">6.2. Pulling the synopsis of Full Metal Alchemist from that search, using Simple X-expression Path Queries</a></li>
+<li><a href="#orgheadline19">6.3. Combining a number of strings with a base URL in one call to create a single new URL</a></li>
 </ul>
 </li>
-<li><a href="#orgheadline19">7. <span class="todo TODO">TODO</span> <code>[1/2]</code></a></li>
+<li><a href="#orgheadline21">7. <span class="todo TODO">TODO</span> <code>[2/2]</code></a></li>
 </ul>
 </div>
 </div>
@@ -72,7 +74,7 @@ Reads an XML document from an input port, selects its element, eliminates whites
 
 ## set-xexpr-content<a id="orgheadline7"></a>
 
-Consumes an Xexpr, a Symbol representing an element's name, and some content. It steps through the xexpr looking for an element whose name matches the one given, then returns the entire xexpr with that element's content replaced with the content given. Might be better to replace this with pattern matching, if it's more readable.
+Consumes an Xexpr, a Symbol representing an element's name, and some content. It steps through the xexpr looking for an element whose name matches the one given, then returns the entire xexpr with that element's content replaced with the content given.
 
 # Actions<a id="orgheadline11"></a>
 
@@ -83,9 +85,9 @@ Searching works for anime and manga.
 
 ## Add/Update/Delete<a id="orgheadline10"></a>
 
-Currently partially supported. MAL's API requires that to add, update, or delete an anime or manga you must pass its ID and data containing XML information ("Anime/Manga Values") with updated statuses. Includes a helper function, `category+suffix` so that you can just pass ANIME or MANGA.
+Consumes a string (ANIME or MANGA) representing the category, a symbol representing the name of the field in the xml-values to change, and the content to replace it with, and the ID of the anime/manga to work on. Search, update, and delete all work on both anime & manga. Utilizes mal-list-action. Originally tried to use a regular HTTP POST request with data, but MAL is weird. I used HTTP GET and pass data in the URL. Adding returns broken HTML, MAL's <meta &#x2026;> tag is broken it looks like.
 
-# Boilerplate<a id="orgheadline14"></a>
+# Boilerplate<a id="orgheadline16"></a>
 
 ## combine-url\*/relative<a id="orgheadline12"></a>
 
@@ -96,9 +98,17 @@ This is like `combine-url/relative`, but can take multiple strings and create a 
 Since most actions on the MAL API are similarly structured, we can abstract over it with another function.
 First use `call/input-url` which will handle the opening and closing of ports automatically, then combine the strings given, ensuring the first string is the main URL as you would normally type it, use your port-handling function such as `get-pure-port` or `post-pure-port`, etc., and pass the function which will handle the output. Since the output is XML, we pass `mal->xexpr`. The last element is a list representing header data, which is only our authorization.
 
-# Examples<a id="orgheadline18"></a>
+## mal-list-action<a id="orgheadline14"></a>
 
-## Searching for "Full Metal Alchemist"<a id="orgheadline15"></a>
+Layers over `mal-action` with information specific to adding/updating/deleting. Consumes a string representing an action, like ADD/UPDATE/DELETE, and returns a function which takes four arguments to pass to mal-action as well as calling to set-xexpr-content to pass the appropriately updated xml-values.
+
+## category+suffix<a id="orgheadline15"></a>
+
+Takes a base string and separates the last char, then sticks the second string between those two new substrings.
+
+# Examples<a id="orgheadline20"></a>
+
+## Searching for "Full Metal Alchemist"<a id="orgheadline17"></a>
 
 `(search ANIME "Full Metal Alchemist")`
 => 
@@ -121,23 +131,23 @@ First use `call/input-url` which will handle the opening and closing of ports au
     "Edward Elric, a young, brilliant alchemist, has lost much in his twelve-year life: when he and his brother Alphonse try to resurrect their dead mother through the forbidden act of human transmutation, Edward loses his brother as well as two of his limbs. With his supreme alchemy skills, Edward binds Alphonse's soul to a large suit of armor.  A year later, Edward, now promoted to the fullmetal alchemist of the state, embarks on a journey with his younger brother to obtain the Philosopher's Stone. The fabled mythical object is rumored to be capable of amplifying an alchemist's abilities by leaps and bounds, thus allowing them to override the fundamental law of alchemy: to gain something, an alchemist must sacrifice something of equal value. Edward hopes to draw into the military's resources to find the fabled stone and restore his and Alphonse's bodies to normal. However, the Elric brothers soon discover that there is more to the legendary stone than meets the eye, as they are led to the epicenter of a far darker battle than they could have ever imagined.  [Written by MAL Rewrite]")
    (image () "![img](//cdn.myanimelist.net/images/anime/10/75815.jpg)")))
 
-## Pulling the synopsis of Full Metal Alchemist from that search, using Simple X-expression Path Queries<a id="orgheadline16"></a>
+## Pulling the synopsis of Full Metal Alchemist from that search, using Simple X-expression Path Queries<a id="orgheadline18"></a>
 
 `(se-path* '(synopsis) (search ANIME "Full Metal Alchemist"))`
 =>
 "Edward Elric, a young, brilliant alchemist, has lost much in his twelve-year life: when he and his brother Alphonse try to resurrect their dead mother through the forbidden act of human transmutation, Edward loses his brother as well as two of his limbs. With his supreme alchemy skills, Edward binds Alphonse's soul to a large suit of armor.  A year later, Edward, now promoted to the fullmetal alchemist of the state, embarks on a journey with his younger brother to obtain the Philosopher's Stone. The fabled mythical object is rumored to be capable of amplifying an alchemist's abilities by leaps and bounds, thus allowing them to override the fundamental law of alchemy: to gain something, an alchemist must sacrifice something of equal value. Edward hopes to draw into the military's resources to find the fabled stone and restore his and Alphonse's bodies to normal. However, the Elric brothers soon discover that there is more to the legendary stone than meets the eye, as they are led to the epicenter of a far darker battle than they could have ever imagined.  [Written by MAL Rewrite]"
 
-## Combining a number of strings with a base URL in one call to create a single new URL<a id="orgheadline17"></a>
+## Combining a number of strings with a base URL in one call to create a single new URL<a id="orgheadline19"></a>
 
 `(combine-url*/relative API ANIME (string-append SEARCH "full metal alchemist"))`
 => 
 "<http://myanimelist.net/api/anime/search.xml?q=full+metal+alchemist>"
 We have to append SEARCH and the query because "search.xml?q=" is not considered a URL element which can be combined with another.
 
-# TODO <code>[1/2]</code><a id="orgheadline19"></a>
+# TODO <code>[2/2]</code><a id="orgheadline21"></a>
 
 -   [X] Allow conditional loading of command-line arguments. If you try to reload the module while already in Emacs, you receive an error and it doesn't load at all because there are no command line arguments. If there are no command line arguments, just parameterize the user and pass to "default" and "default" and let the user insert their own manually via (user "myusername") and (pass "mypassword").
--   [ ] Allow for adding/updating/deleting anime & manga values from within the module.
+-   [X] Allow for adding/updating/deleting anime & manga values from within the module.
 
 <div id="footnotes">
 <h2 class="footnotes">Footnotes: </h2>

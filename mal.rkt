@@ -20,32 +20,7 @@
 #| XML |#
 ;-----------------------------------------------------------------------------------------
 (define XML-HEADER "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
-; XML -> Xexpr
-(define xml-values
-  (compose1 xml->xexpr (eliminate-whitespace '(entry)) document-element
-            read-xml/document))
 
-; These contain the default values from MAL's API guide.
-(define anime-values (xml-values (open-input-file "animevalues.xml")))
-(define manga-values (xml-values (open-input-file "mangavalues.xml")))
-
-; Xexpr-Element := [List Symbol [Or Empty [Listof Symbol]] Content]
-; Content := String
-;          | [Listof Xexpr-Element]
-;          | '()
-; Xexpr Symbol String -> Xexpr
-; Update the content of an xexpr element with the new content given.
-(define (set-xexpr-content xexpr name content)
-  ; Xexpr -> Xexpr
-  (define/match (match-single elem)
-    [((list sym attr cnt ...))
-     #:when (symbol=? sym name)
-     (list name attr content)]
-    [((list sym attr cnt ...))
-     (list* sym attr (map match-single cnt))]
-    [(_) elem])
-  ; - IN -
-  (match-single xexpr))
 ;-----------------------------------------------------------------------------------------
 #| BOILERPLATE |#
 ;-----------------------------------------------------------------------------------------
@@ -81,6 +56,35 @@
   (string-append (substring str 0 (sub1 last-char))
                  sfx
                  (substring str (sub1 last-char) last-char)))
+
+; Xexpr -> Bytes/UTF-8
+(define xexpr->bytes/utf-8 
+  (compose1 string->bytes/utf-8 (curry string-append XML-HEADER) xexpr->string))
+
+; [Input-Port -> X] [ -> ] [Listof String] ->
+(define (mal-action port-func handler . str)
+  (call/input-url (apply combine-url*/relative str)
+                  port-func
+                  handler
+                  (list (current-auth))))
+
+; String -> [String Symbol Content Number -> String?]
+; Consumes a string representing an action: ADD, UPDATE, DELETE. Returns a function
+; consuming a string representing the category to act on, the field name (e.g., status,
+; episodes, comments, etc.) and its new value ("1", "tag1"), and the id of the
+; anime/manga.
+(define (mal-list-action action)
+  (λ (category field-name field-content id)
+    (define xml-values
+      (set-xexpr-content (match category ["anime/" anime-values] ["manga/" manga-values])
+                         field-name field-content))
+    ; - IN -
+    (mal-action get-pure-port port->string
+                API (category+suffix category "list") action
+                (string-append (number->string id) ".xml?data="
+                               XML-HEADER
+                               (xexpr->string xml-values)))))
+
 ;-----------------------------------------------------------------------------------------
 #| AUTHORIZATION |#
 ;-----------------------------------------------------------------------------------------
@@ -107,9 +111,44 @@
 (define (re-auth! username password)
   (begin (user username) (pass password) (current-auth (auth-header))
          (~a (user) " : " (pass))))
+
+; -> XML
+; Calls the current parameter for the users authorization info and sends it to MAL,
+; returning a xexpr containing the users authorization info. Not normally used, but useful
+; for debugging or determining user information.
+(define (authorize)
+  (mal-action get-pure-port mal->xexpr
+              API AUTH-STRING))
 ;-----------------------------------------------------------------------------------------
 #| XML PROCESSING |#
 ;-----------------------------------------------------------------------------------------
+; XML -> Xexpr
+(define xml-values
+  (compose1 xml->xexpr (eliminate-whitespace '(entry)) document-element
+            read-xml/document))
+
+; These contain the default values from MAL's API guide.
+(define anime-values (xml-values (open-input-file "animevalues.xml")))
+(define manga-values (xml-values (open-input-file "mangavalues.xml")))
+
+; Xexpr-Element := [List Symbol [Or Empty [Listof Symbol]] Content]
+; Content := String
+;          | [Listof Xexpr-Element]
+;          | '()
+; Xexpr Symbol String -> Xexpr
+; Update the content of an xexpr element with the new content given.
+(define (set-xexpr-content xexpr name content)
+  ; Xexpr -> Xexpr
+  (define/match (match-single elem)
+    [((list sym attr cnt ...))
+     #:when (symbol=? sym name)
+     (list name attr content)]
+    [((list sym attr cnt ...))
+     (list* sym attr (map match-single cnt))]
+    [(_) elem])
+  ; - IN -
+  (match-single xexpr))
+
 ; MAL-Xexpr := '()
 ;            | Symbol
 ;            | String
@@ -164,40 +203,6 @@
 ;-----------------------------------------------------------------------------------------
 #| ACTIONS |#
 ;-----------------------------------------------------------------------------------------
-; Xexpr -> Bytes/UTF-8
-(define xexpr->bytes/utf-8 
-  (compose1 string->bytes/utf-8 (curry string-append XML-HEADER) xexpr->string))
-
-; [Input-Port -> X] [ -> ] [Listof String] ->
-(define (mal-action port-func handler . str)
-  (call/input-url (apply combine-url*/relative str)
-                  port-func
-                  handler
-                  (list (current-auth))))
-
-; String -> [String Symbol Content Number -> String?]
-; Consumes a string representing an action: ADD, UPDATE, DELETE. Returns a function
-; consuming a string representing the category to act on, the field name (e.g., status,
-; episodes, comments, etc.) and its new value ("1", "tag1"), and the id of the
-; anime/manga.
-(define (mal-list-action action)
-  (λ (category field-name field-content id)
-    (define xml-values
-      (set-xexpr-content (match category ["anime/" anime-values] ["manga/" manga-values])
-                         field-name field-content))
-    ; - IN -
-    (mal-action get-pure-port port->string
-                API (category+suffix category "list") action
-                (string-append (number->string id) ".xml?data="
-                               XML-HEADER
-                               (xexpr->string xml-values)))))
-; -> XML
-; Calls the current parameter for the users authorization info and sends it to MAL,
-; returning a xexpr containing the users authorization info.
-(define (authorize)
-  (mal-action get-pure-port mal->xexpr
-              API AUTH-STRING))
-
 ; String String -> Xexpr
 ; Returns an Xexpr detailing the search results. Category is a string: either
 ; ANIME or MANGA.
