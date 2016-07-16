@@ -16,15 +16,18 @@
 (define DELETE "delete/")
 (define API (combine-url/relative HOST "api/"))
 
-;-----------------------------------------------------------------------------------------
+#| HTML |#
+(define REPLACE-ME '("&#039;" "<br />"))
+(define REPLACE-WITH '("'" ""))
+
+
 #| XML |#
-;-----------------------------------------------------------------------------------------
 (define XML-HEADER "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
 
 ;-----------------------------------------------------------------------------------------
 #| BOILERPLATE |#
 ;-----------------------------------------------------------------------------------------
-; "racket -it mal.rkt yourusername yourpassword
+; "racket -it mal.rkt yourusername yourpassword"
 
 ; If launched from the command-line with the appropriate arguments for a username and
 ; password, parameterize user and pass with those arguments. Otherwise, parameterize both
@@ -61,7 +64,7 @@
 (define xexpr->bytes/utf-8 
   (compose1 string->bytes/utf-8 (curry string-append XML-HEADER) xexpr->string))
 
-; [Input-Port -> X] [ -> ] [Listof String] ->
+; [Input-Port -> X] [X -> Y] [Listof String] ->
 (define (mal-action port-func handler . str)
   (call/input-url (apply combine-url*/relative str)
                   port-func
@@ -188,7 +191,7 @@
   [(apply compose1
           (map
            (curryr string-replace)
-           '("&#039;" "<br />") '("'" "")))
+           REPLACE-ME REPLACE-WITH))
    input-str])
 
 ; Document -> Xexpr

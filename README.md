@@ -46,7 +46,7 @@ This is a command-line client for the MAL API, supporting searching manga and an
 
 # Use<a id="orgheadline1"></a>
 
-First enter the following at the command-line: `racket -it mal.rkt yourusername yourpassword` or `require` the module at the REPL. If you didn't run the module from the command-line, then the username and password will both be set to "default". To change your username and password, just call `(user String)` and `(pass String)`, where `String` is your username or password. After you update your username and password, you'll have to update the authorization information by calling `(current-auth (auth-header))`. Calling any of these functions without arguments will return their current value (e.g., `(user)` will return your username).
+First enter the following at the command-line: `racket -it mal.rkt yourusername yourpassword` or `require` the module at the REPL. If you didn't run the module from the command-line, then the username and password will both be set to "default". To change your username and password, just call `(re-auth! String String)`, where `String` is your username or password. Calling `user` or `pass` without arguments will return their current value (e.g., `(user)` will return your username) and calling them with arguments will parameterize their values to that argument.
 
 # Authorization<a id="orgheadline2"></a>
 
