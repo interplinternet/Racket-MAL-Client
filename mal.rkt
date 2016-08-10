@@ -2,9 +2,9 @@
 (require xml xml/path net/url net/uri-codec net/http-client net/base64 html)
 (provide (all-defined-out))
 
-;-----------------------------------------------------------------------------------------
+;;---------------------------------------------------------------------------------------------------
 #| URLS |#
-;-----------------------------------------------------------------------------------------
+
 (define MAL "http://myanimelist.net/")
 (define HOST (string->url MAL))
 (define AUTH-STRING "account/verify_credentials.xml")
@@ -24,9 +24,9 @@
 #| XML |#
 (define XML-HEADER "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
 
-;-----------------------------------------------------------------------------------------
+;;---------------------------------------------------------------------------------------------------
 #| BOILERPLATE |#
-;-----------------------------------------------------------------------------------------
+
 ; "racket -it mal.rkt yourusername yourpassword"
 
 ; If launched from the command-line with the appropriate arguments for a username and
@@ -64,7 +64,7 @@
 (define xexpr->bytes/utf-8 
   (compose1 string->bytes/utf-8 (curry string-append XML-HEADER) xexpr->string))
 
-; [Input-Port -> X] [X -> Y] [Listof String] ->
+; [Input-Port -> X] [X -> Y] [Listof String] -> MAL-Xexpr
 (define (mal-action port-func handler . str)
   (call/input-url (apply combine-url*/relative str)
                   port-func
@@ -76,18 +76,16 @@
 ; consuming a string representing the category to act on, the field name (e.g., status,
 ; episodes, comments, etc.) and its new value ("1", "tag1"), and the id of the
 ; anime/manga.
-(define (mal-list-action action)
-  (λ (category field-name field-content id)
-    (define xml-values
-      (set-xexpr-content (match category ["anime/" anime-values] ["manga/" manga-values])
-                         field-name field-content))
-    ; - IN -
-    (mal-action get-pure-port port->string
-                API (category+suffix category "list") action
-                (string-append (number->string id) ".xml?data="
-                               XML-HEADER
-                               (xexpr->string xml-values)))))
-
+(define ((mal-list-action action) category field-name field-content id)
+  (define xml-values
+    (set-xexpr-content (match category ["anime/" anime-values] ["manga/" manga-values])
+                       field-name field-content))
+  ; - IN -
+  (mal-action get-pure-port port->string
+              API (category+suffix category "list") action
+              (string-append (number->string id) ".xml?data="
+                             XML-HEADER
+                             (xexpr->string xml-values))))
 ;-----------------------------------------------------------------------------------------
 #| AUTHORIZATION |#
 ;-----------------------------------------------------------------------------------------
@@ -224,10 +222,3 @@
 
 ; String Xexpr Number -> String
 (define delete (mal-list-action DELETE))
-;-----------------------------------------------------------------------------------------
-#| EXAMPLES |#
-;-----------------------------------------------------------------------------------------
-#|  (define ex-auth (authorize))
-(define ex-search (search ANIME "full metal alchemist"))
-(define normal-ex (normalize-mal ex-search))
-(define ex-synopsis (se-path* '(synopsis) ex-search))|#
